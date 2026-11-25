@@ -14,6 +14,19 @@ python -m pip install -e ".[dev]"
 Copy-Item .env.example .env   # only if you have no .env yet; then fill in credentials
 ```
 
+## Database migrations (Alembic)
+
+Alembic reads `DATABASE_URL` from `.env` (project root); no URL is stored in `alembic.ini`.
+
+```powershell
+python -m alembic upgrade head      # create/update the schema in the flowforge database
+python -m alembic current           # show the applied revision
+python -m alembic history           # list revisions
+```
+
+Do not run `alembic downgrade` against a database whose data you need: it drops tables.
+The test suite migrates `flowforge_test` itself (up, down and up again).
+
 ## Run
 
 ```powershell

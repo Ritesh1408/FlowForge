@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from flowforge.core import config
 from flowforge.core.config import Settings
 
 _ENV_VARS = (
@@ -82,3 +83,36 @@ def test_invalid_values_rejected(field: str, value: object) -> None:
             redis_url="redis://localhost:6379/0",
             **{field: value},
         )
+
+
+def test_env_file_is_anchored_at_project_root() -> None:
+    assert config.ENV_FILE.is_absolute()
+    assert config.ENV_FILE.name == ".env"
+    assert (config.ENV_FILE.parent / "pyproject.toml").is_file()
+    assert (config.ENV_FILE.parent / "AGENTS.md").is_file()
+    assert Settings.model_config["env_file"] == config.ENV_FILE
+
+
+def test_env_file_is_found_from_another_working_directory(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_env = tmp_path / "project" / ".env"
+    project_env.parent.mkdir()
+    project_env.write_text(
+        "DATABASE_URL=postgresql+asyncpg://u:p@localhost:5432/flowforge\n"
+        "REDIS_URL=redis://localhost:6379/0\n",
+        encoding="utf-8",
+    )
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    (elsewhere / ".env").write_text(
+        "DATABASE_URL=postgresql+asyncpg://u:p@localhost:5432/decoy\nREDIS_URL=redis://decoy:6379/0\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setitem(Settings.model_config, "env_file", project_env)
+
+    settings = Settings()
+
+    assert settings.database_url.get_secret_value().endswith("/flowforge")
+    assert settings.redis_url.get_secret_value() == "redis://localhost:6379/0"
