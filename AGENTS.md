@@ -357,3 +357,19 @@ Priority order:
 8. Performance optimization when justified.
 
 Build FlowForge incrementally and keep it runnable throughout development.
+
+
+## 23. Phased Development and Demo Strategy
+
+- Build FlowForge in explicitly approved phases.
+- Implement only the current phase and its requirements.
+- Do not start subsequent phases automatically.
+- Keep the application runnable after each phase.
+- Before implementation, verify required local services and dependencies when relevant.
+- PostgreSQL and Redis run locally on Windows. Docker must not be used.
+- Avoid installing dependencies unless required for the current task.
+- Explain newly introduced dependencies briefly.
+- Prioritize a genuine end-to-end demonstrable workflow over unnecessary features.
+- The eventual demo should demonstrate workflow creation, asynchronous execution, step progress, failure/retry behavior, and execution logs using actual functionality.
+- Never fabricate execution results, logs, agent outputs, or test results for the demo.
+- Keep demo preparation separate from implementation; do not add demo-only shortcuts that compromise actual functionality.
