@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from flowforge.api.errors import register_exception_handlers
 from flowforge.api.v1.router import api_router
 from flowforge.core.config import Settings, get_settings
 from flowforge.core.logging import configure_logging
@@ -42,5 +43,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging(settings.log_level)
     app = FastAPI(title="FlowForge", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
+    register_exception_handlers(app)
     app.include_router(api_router, prefix="/api/v1")
     return app

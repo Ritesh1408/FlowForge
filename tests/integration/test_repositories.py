@@ -91,19 +91,9 @@ async def test_create_execution_defaults_input_to_empty_object(db_session: Async
     assert execution.input == {}
 
 
-@pytest.mark.parametrize(
-    "definition",
-    [{}, {"steps": []}, {"steps": "nope"}, {"steps": [{"name": "a"}]}, {"steps": [{"type": "delay"}]}],
-)
-async def test_create_execution_rejects_definition_without_usable_steps(
-    db_session: AsyncSession, definition: dict
-) -> None:
-    workflow = await workflow_repo.create_workflow(db_session, name="wf", definition=definition)
-
-    with pytest.raises(ValueError):
-        await execution_repo.create_execution(db_session, workflow)
-
-    assert await _count(db_session, Execution, workflow_id=workflow.id) == 0
+# Rejecting definitions without usable steps moved to the workflow registry (Phase 3):
+# see tests/test_workflow_definition.py::test_malformed_definitions_rejected and the
+# registry API tests, which also check that nothing is persisted.
 
 
 async def test_create_execution_is_all_or_nothing(db_session: AsyncSession) -> None:

@@ -20,28 +20,17 @@ from flowforge.models import (
 _UNSET: Any = object()
 
 
-def _step_specs(definition: dict[str, Any]) -> list[dict[str, Any]]:
-    # Full definition validation belongs to the workflow registry (later phase); this only
-    # checks what is needed to create step rows.
-    steps = definition.get("steps")
-    if not isinstance(steps, list) or not steps:
-        raise ValueError("Workflow definition must contain a non-empty 'steps' list")
-    for index, step in enumerate(steps):
-        if not isinstance(step, dict) or not step.get("name") or not step.get("type"):
-            raise ValueError(f"Step {index} must be an object with 'name' and 'type'")
-    return steps
-
-
 async def create_execution(
     session: AsyncSession, workflow: Workflow, *, input_data: dict[str, Any] | None = None
 ) -> tuple[Execution, list[ExecutionStep]]:
     """Create an execution, its definition snapshot and one PENDING step per defined step.
 
+    ``workflow.definition`` must already be valid: definitions are validated by the
+    workflow registry (``flowforge.schemas.workflow_definition``) before they are stored.
     All rows are written in the caller's transaction: if any insert fails, rolling back
     leaves neither the execution nor any of its steps.
     """
     snapshot = copy.deepcopy(workflow.definition)
-    specs = _step_specs(snapshot)
 
     execution = Execution(
         id=uuid.uuid4(),
@@ -58,7 +47,7 @@ async def create_execution(
             type=spec["type"],
             status=StepStatus.PENDING.value,
         )
-        for position, spec in enumerate(specs)
+        for position, spec in enumerate(snapshot["steps"])
     ]
     session.add(execution)
     session.add_all(steps)
