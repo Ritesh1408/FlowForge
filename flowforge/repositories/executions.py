@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from flowforge.models import (
@@ -104,6 +104,22 @@ async def update_step_status(
             setattr(step, column, value)
     await session.flush()
     return step
+
+
+async def set_pending_steps_status(
+    session: AsyncSession, execution_id: uuid.UUID, status: StepStatus | str
+) -> int:
+    """Set every still-PENDING step of an execution to ``status`` in one statement.
+
+    Returns the number of steps changed. Transition rules are not checked here.
+    """
+    statement = (
+        update(ExecutionStep)
+        .where(ExecutionStep.execution_id == execution_id, ExecutionStep.status == StepStatus.PENDING.value)
+        .values(status=StepStatus(status).value)
+    )
+    result = await session.execute(statement)
+    return result.rowcount
 
 
 async def add_log(

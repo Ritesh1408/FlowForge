@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     app_env: Literal["development", "test", "production"] = "development"
     log_level: str = "INFO"
     health_check_timeout_seconds: float = Field(default=2.0, gt=0)
+    # Redis list that new executions are pushed onto (LPUSH); workers will pop from it.
+    execution_queue_key: str = Field(default="flowforge:queue:executions", min_length=1, max_length=200)
+    queue_enqueue_timeout_seconds: float = Field(default=2.0, gt=0)
 
     @field_validator("log_level")
     @classmethod

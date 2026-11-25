@@ -29,3 +29,16 @@ class WorkflowNotFoundError(NotFoundError):
 
 class WorkflowNameConflictError(ConflictError):
     code = "workflow_name_conflict"
+
+
+class ServiceUnavailableError(FlowForgeError):
+    status_code = 503
+    code = "service_unavailable"
+
+
+class ExecutionPersistenceError(ServiceUnavailableError):
+    code = "execution_persistence_failed"
+
+
+class ExecutionQueueUnavailableError(ServiceUnavailableError):
+    code = "execution_queue_unavailable"

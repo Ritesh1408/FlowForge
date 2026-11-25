@@ -1,11 +1,15 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Body, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from flowforge.core.config import Settings
 from flowforge.db.session import get_session
+from flowforge.queue.execution_queue import ExecutionQueue
 from flowforge.schemas.errors import ErrorResponse
+from flowforge.schemas.executions import ExecutionCreate, ExecutionCreated
 from flowforge.schemas.workflows import WorkflowCreate, WorkflowList, WorkflowResponse
+from flowforge.services.executions import ExecutionService
 from flowforge.services.workflows import WorkflowService
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -15,6 +19,19 @@ VALIDATION_ERROR = {status.HTTP_422_UNPROCESSABLE_CONTENT: {"model": ErrorRespon
 
 def get_workflow_service(session: AsyncSession = Depends(get_session)) -> WorkflowService:
     return WorkflowService(session)
+
+
+def get_execution_queue(request: Request) -> ExecutionQueue:
+    settings: Settings = request.app.state.settings
+    return ExecutionQueue(
+        request.app.state.redis, settings.execution_queue_key, settings.queue_enqueue_timeout_seconds
+    )
+
+
+def get_execution_service(
+    session: AsyncSession = Depends(get_session), queue: ExecutionQueue = Depends(get_execution_queue)
+) -> ExecutionService:
+    return ExecutionService(session, queue)
 
 
 @router.post(
@@ -52,3 +69,24 @@ async def get_workflow(
     workflow_id: uuid.UUID, service: WorkflowService = Depends(get_workflow_service)
 ) -> WorkflowResponse:
     return WorkflowResponse.model_validate(await service.get(workflow_id))
+
+
+@router.post(
+    "/{workflow_id}/execute",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=ExecutionCreated,
+    responses={
+        status.HTTP_404_NOT_FOUND: {"model": ErrorResponse},
+        status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ErrorResponse},
+        **VALIDATION_ERROR,
+    },
+)
+async def execute_workflow(
+    workflow_id: uuid.UUID,
+    body: ExecutionCreate | None = Body(default=None),
+    service: ExecutionService = Depends(get_execution_service),
+) -> ExecutionCreated:
+    """Create a QUEUED execution of the workflow and dispatch it. The body is optional;
+    each request creates a new execution."""
+    input_data = body.input if body is not None else {}
+    return ExecutionCreated.model_validate(await service.create(workflow_id, input_data))
